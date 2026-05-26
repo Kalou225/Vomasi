@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOMASI - Test</title>
+</head>
+<body>
+    <h1>Test VOMASI</h1>
+    <p>Si tu vois ce texte, le serveur fonctionne.</p>
+    
+    <div>
+        <h2>Connexion</h2>
+        <input type="text" id="user" placeholder="Identifiant"><br><br>
+        <input type="password" id="pass" placeholder="Mot de passe"><br><br>
+        <button onclick="connexion()">Se connecter</button>
+    </div>
+    
+    <div id="resultat"></div>
+    
+    <script>
+        async function connexion() {
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+            
+            const reponse = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: user, password: pass})
+            });
+            
+            const data = await reponse.json();
+            if(data.success) {
+                document.getElementById('resultat').innerHTML = '<h3 style="color:green">✅ Connecté avec succès ! L\'interface complète devrait s\'afficher.</h3>';
+            } else {
+                document.getElementById('resultat').innerHTML = '<h3 style="color:red">❌ Accès refusé</h3>';
+            }
+        }
+    </script>
+</body>
+</html>

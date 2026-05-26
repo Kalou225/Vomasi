@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>VOMASI - Gestion des cotisations</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px;
+            min-height: 100vh;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { color: #667eea; font-size: 28px; }
+        .header p { color: #666; }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #764ba2; }
+        .btn-danger { background: #e74c3c; }
+        .btn-success { background: #27ae60; }
+        .btn-warning { background: #f39c12; }
+        .btn-info { background: #3498db; }
+        .member-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .member-card.retard-complet { border-left-color: #e74c3c; background: #fee; }
+        .member-card.retard-repas { border-left-color: #f39c12; background: #fff3e0; }
+        .member-card.a-jour { border-left-color: #27ae60; background: #e8f8f5; }
+        .member-info { flex: 1; }
+        .status-icons {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 50px;
+            text-align: center;
+        }
+        .icon-green { font-size: 28px; }
+        .icon-red { font-size: 28px; }
+        .icon-label { font-size: 10px; color: #666; }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        .badge-up { background: #27ae60; color: white; }
+        .badge-late { background: #e74c3c; color: white; }
+        .badge-partial { background: #f39c12; color: white; }
+        .nav-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .nav-buttons button { flex: 1; min-width: 100px; font-size: 14px; }
+        .hidden { display: none; }
+        .info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .total-card {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            text-align: center;
+        }
+        .total-card h2 { font-size: 32px; margin: 10px 0; }
+        .progress-bar {
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: white;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .flex-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .flex-buttons button {
+            margin: 0;
+            padding: 8px;
+            font-size: 12px;
+        }
+        .deadline-card {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+        .fiche-recap {
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .fiche-recap hr {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card header">
+            <h1>🏠 VOMASI</h1>
+            <p>Association<br>Gestion des cotisations</p>
+        </div>
+
+        <div id="loginScreen" class="card">
+            <h2>🔐 Accès restreint</h2>
+            <input type="text" id="username" placeholder="Identifiant">
+            <input type="password" id="password" placeholder="Mot de passe">
+            <button onclick="login()">Se connecter</button>
+            <div class="info"><strong>Accès :</strong> presidente / vomasi2025</div>
+        </div>
+
+        <div id="mainMenu" class="hidden">
+            <div class="card total-card" id="totalCard">
+                <h3>💰 Total collecté</h3>
+                <h2 id="totalAmount">0 FCFA</h2>
+                <p>À remettre au bénéficiaire</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="progressText">0 membre(s) à jour sur 0</p>
+            </div>
+
+            <div class="card deadline-card" id="deadlineCard">
+                <h3>📅 Date limite de cotisation</h3>
+                <p id="deadlineDisplay">Non fixée</p>
+                <input type="date" id="deadlineDate">
+                <button onclick="setDeadline()" class="btn-info">Fixer la date limite</button>
+            </div>
+
+            <div class="card">
+                <div class="nav-buttons">
+                    <button onclick="showMembers()">📋 Membres</button>
+                    <button onclick="showAddMember()">➕ Ajouter</button>
+                    <button onclick="showPay()">💰 Payer</button>
+                    <button onclick="showSearch()">🔍 Rechercher</button>
+                    <button onclick="showBeneficiary()">👑 Bénéficiaire</button>
+                    <button onclick="genererFiche()">📄 Fiche récap</button>
+                    <button onclick="exportCSV()">📁 Export CSV</button>
+                    <button onclick="showLate()">⚠️ Retards</button>
+                    <button onclick="showStats()">📊 Stats</button>
+                    <button onclick="resetAllMembers()" class="btn-danger">🗑️ Effacer tout</button>
+                    <button onclick="logout()" class="btn-danger">🚪 Déconnexion</button>
+                </div>
+            </div>
+            <div id="contentArea" class="card">
+                <h3>📊 Tableau de bord</h3>
+                <p>Bienvenue dans VOMASI</p>
+                <div class="info">
+                    <p>💰 Cotisation : <strong>10 000 FCFA</strong> 🟢</p>
+                    <p>🍽️ Restauration : <strong>1 000 FCFA</strong> 🔴</p>
+                    <p>📅 Périodicité : <strong>tous les 2 mois</strong> (60 jours)</p>
+                    <hr>
+                    <p>🟢 Vert = Cotisation payée</p>
+                    <p>🔴 Rouge = Restauration due</p>
+                    <p>🟠 Orange = Cycle de 2 mois dépassé</p>
+                </div>
+                <div class="info">👑 Bénéficiaire actuel : <strong id="currentBenef">Non désigné</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        
+        const COTISATION_BASE = 10000;
+        const FRAIS_REPAS = 1000;
+        const DELAI_JOURS = 60;
+        
+        function initDB() {
+            if (!localStorage.getItem('membres')) {
+                localStorage.setItem('membres', JSON.stringify([]));
+                localStorage.setItem('nextId', '1');
+            }
+            if (!localStorage.getItem('beneficiaire')) {
+                localStorage.setItem('beneficiaire', 'Non désigné');
+            }
+            if (!localStorage.getItem('totalCollecte')) {
+                localStorage.setItem('totalCollecte', '0');
+            }
+            if (!localStorage.getItem('dateLimite')) {
+                localStorage.setItem('dateLimite', '');
+            }
+            if (!localStorage.getItem('derniereRemise')) {
+                localStorage.setItem('derniereRemise', JSON.stringify({ date: '', montant: 0, beneficiaire: '' }));
+            }
+            updateTotalDisplay();
+            updateBenefDisplay();
+            updateDeadlineDisplay();
+        }
+        
+        function updateTotalDisplay() {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            let total = 0;
+            let membresComplets = 0;
+            
+            for (const m of membres) {
+                let paye = 0;
+                if (m.payeCotisation) paye += COTISATION_BASE;
+                if (m.payeRepas) paye += FRAIS_REPAS;
+                total += paye;
+                
+                if (m.payeCotisation && m.payeRepas && !isCycleDepasse(m)) membresComplets++;
+            }
+            
+            localStorage.setItem('totalCollecte', total);
+            document.getElementById('totalAmount').innerHTML = total.toLocaleString() + ' FCFA';
+            
+            const totalAttendu = membres.length * (COTISATION_BASE + FRAIS_REPAS);
+            if (totalAttendu > 0) {
+                const pourcentage = (total / totalAttendu) * 100;
+                document.getElementById('progressFill').style.width = pourcentage + '%';
+                document.getElementById('progressText').innerHTML = `${membresComplets} membre(s) à jour sur ${membres.length}`;
+            } else {
+                document.getElementById('progressFill').style.width = '0%';
+                document.getElementById('progressText').innerHTML = `0 membre(s) à jour sur 0`;
+            }
+        }
+        
+        function updateDeadlineDisplay() {
+            const dateLimite = localStorage.getItem('dateLimite');
+            if (dateLimite) {
+                document.getElementById('deadlineDisplay').innerHTML = `📅 ${dateLimite}`;
+            } else {
+                document.getElementById('deadlineDisplay').innerHTML = 'Non fixée';
+            }
+        }
+        
+        function setDeadline() {
+            const date = document.getElementById('deadlineDate').value;
+            if (date) {
+                localStorage.setItem('dateLimite', date);
+                updateDeadlineDisplay();
+                alert(`✅ Date limite fixée au ${date}`);
+            } else {
+                alert('Veuillez choisir une date');
+            }
+        }
+        
+        function isCycleDepasse(m) {
+            if (!m.derniereCotisation) return true;
+            const lastDate = new Date(m.derniereCotisation);
+            const today = new Date();
+            const diffDays = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+            return diffDays > DELAI_JOURS;
+        }
+        
+        function getMemberStatus(m) {
+            const cycleDepasse = isCycleDepasse(m);
+            
+            if (cycleDepasse && !m.payeCotisation && !m.payeRepas) {
+                return { type: 'cycle_depasse', message: '⚠️ Cycle 2 mois dépassé', iconCotisation: '🔴', iconRepas: '🔴', cardClass: 'retard-complet' };
+            }
+            if (cycleDepasse && m.payeCotisation && !m.payeRepas) {
+                return { type: 'cycle_depasse_repas', message: '⚠️ Cycle dépassé - Restauration due', iconCotisation: '🟢', iconRepas: '🔴', cardClass: 'retard-repas' };
+            }
+            if (m.payeCotisation && m.payeRepas) {
+                return { type: 'a_jour', message: '✅ À jour', iconCotisation: '🟢', iconRepas: '🟢', cardClass: 'a-jour' };
+            }
+            if (m.payeCotisation && !m.payeRepas) {
+                return { type: 'manque_repas', message: '⚠️ Restauration due (1000 FCFA)', iconCotisation: '🟢', iconRepas: '🔴', cardClass: 'retard-repas' };
+            }
+            if (!m.payeCotisation && m.payeRepas) {
+                return { type: 'manque_cotisation', message: '⚠️ Cotisation due (10000 FCFA)', iconCotisation: '🔴', iconRepas: '🟢', cardClass: 'retard-repas' };
+            }
+            return { type: 'rien', message: '❌ En retard (11000 FCFA)', iconCotisation: '🔴', iconRepas: '🔴', cardClass: 'retard-complet' };
+        }
+        
+        function updateBenefDisplay() {
+            const benef = localStorage.getItem('beneficiaire');
+            const display = document.getElementById('currentBenef');
+            if (display) display.innerText = benef;
+        }
+        
+        function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            if (user === 'presidente' && pass === 'vomasi2025') {
+                currentUser = user;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainMenu').classList.remove('hidden');
+                initDB();
+                updateTotalDisplay();
+                updateBenefDisplay();
+                updateDeadlineDisplay();
+            } else {
+                alert('Identifiant ou mot de passe incorrect');
+            }
+        }
+        
+        function logout() {
+            currentUser = null;
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+        
+        function showMembers() {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            if (membres.length === 0) {
+                document.getElementById('contentArea').innerHTML = '<h3>📋 Liste des membres</h3><p>Aucun membre pour le moment. Ajoutez-en !</p>';
+                return;
+            }
+            let html = '<h3>📋 Liste des membres</h3>';
+            for (const m of membres) {
+                const status = getMemberStatus(m);
+                const datePaiement = m.datePaiementCotisation ? new Date(m.datePaiementCotisation).toLocaleDateString('fr-FR') : 'Jamais';
+                html += `
+                    <div class="member-card ${status.cardClass}">
+                        <div class="status-icons">
+                            <div class="${status.iconCotisation === '🟢' ? 'icon-green' : 'icon-red'}">${status.iconCotisation}</div>
+                            <div class="icon-label">Cotisation<br>10000 FCFA</div>
+                            <div class="${status.iconRepas === '🟢' ? 'icon-green' : 'icon-red'}" style="margin-top:5px">${status.iconRepas}</div>
+                            <div class="icon-label">Restauration<br>1000 FCFA</div>
+                        </div>
+                        <div class="member-info">
+                            <strong>${m.nom} ${m.prenom}</strong><br>
+                            📍 ${m.localite}<br>
+                            📞 ${m.telephone}<br>
+                            <span class="badge ${status.type === 'a_jour' ? 'badge-up' : (status.type.includes('manque') ? 'badge-partial' : 'badge-late')}">${status.message}</span><br>
+                            📅 Dernier paiement cotisation: <strong>${datePaiement}</strong><br>
+                            <div class="flex-buttons">
+                                ${!m.payeCotisation ? `<button onclick="payCotisation(${m.id})" class="btn-success" style="margin:0">💰 10000</button>` : ''}
+                                ${!m.payeRepas ? `<button onclick="payRepas(${m.id})" class="btn-warning" style="margin:0">🍽️ 1000</button>` : ''}
+                                <button onclick="deleteMember(${m.id})" class="btn-danger" style="margin:0">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('contentArea').innerHTML = html;
+        }
+        
+        function deleteMember(id) {
+            if (confirm('⚠️ Supprimer ce membre ?')) {
+                let membres = JSON.parse(localStorage.getItem('membres'));
+                membres = membres.filter(m => m.id !== id);
+                localStorage.setItem('membres', JSON.stringify(membres));
+                updateTotalDisplay();
+                alert('✅ Membre supprimé');
+                showMembers();
+            }
+        }
+        
+        function resetAllMembers() {
+            if (confirm('⚠️⚠️ SUPPRIMER TOUS LES MEMBRES ? ⚠️⚠️')) {
+                localStorage.setItem('membres', JSON.stringify([]));
+                localStorage.setItem('nextId', '1');
+                localStorage.setItem('totalCollecte', '0');
+                updateTotalDisplay();
+                alert('✅ Tous les membres ont été supprimés');
+                showMembers();
+            }
+        }
+        
+        function showAddMember() {
+            document.getElementById('contentArea').innerHTML = `
+                <h3>➕ Ajouter un membre</h3>
+                <input type="text" id="nom" placeholder="Nom">
+                <input type="text" id="prenom" placeholder="Prénom">
+                <input type="text" id="localite" placeholder="Localité">
+                <input type="tel" id="telephone" placeholder="Téléphone">
+                <button onclick="addMember()" class="btn-success">Enregistrer</button>
+                <button onclick="showMembers()">Annuler</button>
+            `;
+        }
+        
+        function addMember() {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const newId = parseInt(localStorage.getItem('nextId'));
+            const nouveau = {
+                id: newId,
+                nom: document.getElementById('nom').value,
+                prenom: document.getElementById('prenom').value,
+                localite: document.getElementById('localite').value,
+                telephone: document.getElementById('telephone').value,
+                derniereCotisation: null,
+                datePaiementCotisation: null,
+                payeCotisation: false,
+                payeRepas: false
+            };
+            membres.push(nouveau);
+            localStorage.setItem('membres', JSON.stringify(membres));
+            localStorage.setItem('nextId', newId + 1);
+            updateTotalDisplay();
+            alert('Membre ajouté avec succès');
+            showMembers();
+        }
+        
+        function showPay() {
+            document.getElementById('contentArea').innerHTML = `
+                <h3>💰 Enregistrer un paiement</h3>
+                <input type="text" id="searchNom" placeholder="Nom du membre">
+                <button onclick="searchForPay()">Chercher</button>
+                <div id="payResults"></div>
+            `;
+        }
+        
+        function searchForPay() {
+            const searchTerm = document.getElementById('searchNom').value.toLowerCase();
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const results = membres.filter(m => m.nom.toLowerCase().includes(searchTerm) || m.prenom.toLowerCase().includes(searchTerm));
+            if (results.length === 0) {
+                document.getElementById('payResults').innerHTML = '<p>Aucun membre trouvé</p>';
+                return;
+            }
+            let html = '<h4>Résultats :</h4>';
+            for (const m of results) {
+                const status = getMemberStatus(m);
+                html += `
+                    <div class="member-card ${status.cardClass}" style="display:block">
+                        <strong>${m.nom} ${m.prenom}</strong><br>
+                        ${status.iconCotisation} Cotisation: ${m.payeCotisation ? 'Payée le ' + (m.datePaiementCotisation ? new Date(m.datePaiementCotisation).toLocaleDateString('fr-FR') : '') : 'Non payée'}<br>
+                        ${status.iconRepas} Restauration: ${m.payeRepas ? 'Payée' : 'Non payée'}<br>
+                        <div class="flex-buttons">
+                            ${!m.payeCotisation ? `<button onclick="payCotisation(${m.id})" class="btn-success">💰 10000 FCFA</button>` : ''}
+                            ${!m.payeRepas ? `<button onclick="payRepas(${m.id})" class="btn-warning">🍽️ 1000 FCFA</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('payResults').innerHTML = html;
+        }
+        
+        function payCotisation(id) {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const index = membres.findIndex(m => m.id === id);
+            if (index !== -1 && !membres[index].payeCotisation) {
+                const today = new Date().toISOString().slice(0,10);
+                membres[index].payeCotisation = true;
+                membres[index].datePaiementCotisation = today;
+                membres[index].derniereCotisation = today;
+                localStorage.setItem('membres', JSON.stringify(membres));
+                updateTotalDisplay();
+                alert(`✅ 10000 FCFA enregistré pour ${membres[index].nom} ${membres[index].prenom}\n📅 Date: ${new Date(today).toLocaleDateString('fr-FR')}`);
+                showMembers();
+            }
+        }
+        
+        function payRepas(id) {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const index = membres.findIndex(m => m.id === id);
+            if (index !== -1 && !membres[index].payeRepas) {
+                membres[index].payeRepas = true;
+                localStorage.setItem('membres', JSON.stringify(membres));
+                updateTotalDisplay();
+                alert(`✅ 1000 FCFA enregistré pour ${membres[index].nom} ${membres[index].prenom}`);
+                showMembers();
+            }
+        }
+        
+        function showSearch() {
+            document.getElementById('contentArea').innerHTML = `
+                <h3>🔍 Rechercher un membre</h3>
+                <input type="text" id="searchTerm" placeholder="Nom ou prénom">
+                <button onclick="searchMember()">Rechercher</button>
+                <div id="searchResults"></div>
+            `;
+        }
+        
+        function searchMember() {
+            const term = document.getElementById('searchTerm').value.toLowerCase();
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const results = membres.filter(m => m.nom.toLowerCase().includes(term) || m.prenom.toLowerCase().includes(term));
+            if (results.length === 0) {
+                document.getElementById('searchResults').innerHTML = '<p>Aucun résultat</p>';
+                return;
+            }
+            let html = '<h4>Résultats :</h4>';
+            for (const m of results) {
+                const status = getMemberStatus(m);
+                const datePaiement = m.datePaiementCotisation ? new Date(m.datePaiementCotisation).toLocaleDateString('fr-FR') : 'Jamais';
+                html += `
+                    <div class="member-card ${status.cardClass}">
+                        <div class="status-icons">
+                            <div>${status.iconCotisation}</div>
+                            <div>${status.iconRepas}</div>
+                        </div>
+                        <div class="member-info">
+                            <strong>${m.nom} ${m.prenom}</strong><br>
+                            📍 ${m.localite}<br>
+                            📞 ${m.telephone}<br>
+                            ${status.message}<br>
+                            📅 Date paiement cotisation: ${datePaiement}
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('searchResults').innerHTML = html;
+        }
+        
+        function showBeneficiary() {
+            const current = localStorage.getItem('beneficiaire');
+            const total = localStorage.getItem('totalCollecte');
+            document.getElementById('contentArea').innerHTML = `
+                <h3>👑 Désigner le bénéficiaire</h3>
+                <p>Bénéficiaire actuel : <strong>${current}</strong></p>
+                <p>💰 Montant à remettre : <strong>${parseInt(total).toLocaleString()} FCFA</strong></p>
+                <input type="text" id="benefNom" placeholder="Nom complet du bénéficiaire">
+                <button onclick="setBeneficiary()" class="btn-success">Valider</button>
+                <button onclick="remettreTotal()" class="btn-info">✅ Marquer comme remis</button>
+                <div class="info">La présidente choisit le bénéficiaire selon les besoins.</div>
+            `;
+        }
+        
+        function setBeneficiary() {
+            const nom = document.getElementById('benefNom').value;
+            if (nom) {
+                localStorage.setItem('beneficiaire', nom);
+                alert(`Bénéficiaire désigné : ${nom}`);
+                updateBenefDisplay();
+            } else {
+                alert('Veuillez entrer un nom');
+            }
+        }
+        
+        function remettreTotal() {
+            const total = parseInt(localStorage.getItem('totalCollecte'));
+            const benef = localStorage.getItem('beneficiaire');
+            const today = new Date().toISOString().slice(0,10);
+            
+            if (confirm(`⚠️ As-tu bien remis ${total.toLocaleString()} FCFA à ${benef} ?`)) {
+                // Enregistrer la remise
+                const derniereRemise = { date: today, montant: total, beneficiaire: benef };
+                localStorage.setItem('derniereRemise', JSON.stringify(derniereRemise));
+                
+                // Réinitialiser les paiements
+                let membres = JSON.parse(localStorage.getItem('membres'));
+                for (let m of membres) {
+                    m.payeCotisation = false;
+                    m.payeRepas = false;
+                    m.datePaiementCotisation = null;
+                }
+                localStorage.setItem('membres', JSON.stringify(membres));
+                localStorage.setItem('totalCollecte', '0');
+                updateTotalDisplay();
+                alert(`✅ ${total.toLocaleString()} FCFA marqué comme remis à ${benef} le ${new Date(today).toLocaleDateString('fr-FR')}\nToutes les cotisations sont réinitialisées.`);
+                showMembers();
+            }
+        }
+        
+        function genererFiche() {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const total = parseInt(localStorage.getItem('totalCollecte'));
+            const benef = localStorage.getItem('beneficiaire');
+            const dateLimite = localStorage.getItem('dateLimite');
+            const derniereRemise = JSON.parse(localStorage.getItem('derniereRemise'));
+            
+            const payeurs = membres.filter(m => m.payeCotisation === true);
+            const nonPayeurs = membres.filter(m => m.payeCotisation === false);
+            
+            let fiche = `
+                <div class="fiche-recap">
+                    <h3>📄 FICHE RÉCAPITULATIVE VOMASI</h3>
+                    <p><strong>Date d'édition :</strong> ${new Date().toLocaleDateString('fr-FR')}</p>
+                    <hr>
+                    
+                    <h4>📅 DATE LIMITE DE COTISATION</h4>
+                    <p>${dateLimite || 'Non fixée'}</p>
+                    <hr>
+                    
+                    <h4>👑 BÉNÉFICIAIRE</h4>
+                    <p><strong>Nom :</strong> ${benef}</p>
+                    ${derniereRemise && derniereRemise.montant > 0 ? `
+                        <p><strong>Dernière remise :</strong> ${derniereRemise.montant.toLocaleString()} FCFA</p>
+                        <p><strong>Date de remise :</strong> ${new Date(derniereRemise.date).toLocaleDateString('fr-FR')}</p>
+                        <p><strong>Bénéficiaire précédent :</strong> ${derniereRemise.beneficiaire}</p>
+                    ` : '<p>Aucune remise effectuée pour le moment</p>'}
+                    <hr>
+                    
+                    <h4>💰 TOTAL ENCAISSÉ ACTUEL</h4>
+                    <p><strong>${total.toLocaleString()} FCFA</strong></p>
+                    <hr>
+                    
+                    <h4>✅ MEMBRES À JOUR (Cotisation payée)</h4>
+                    ${payeurs.length > 0 ? payeurs.map(m => `
+                        <p>• ${m.nom} ${m.prenom} - Payé le ${m.datePaiementCotisation ? new Date(m.datePaiementCotisation).toLocaleDateString('fr-FR') : 'Date inconnue'}</p>
+                    `).join('') : '<p>Aucun membre à jour</p>'}
+                    
+                    <h4>❌ MEMBRES NON À JOUR (Cotisation non payée)</h4>
+                    <p><strong>Nombre : ${nonPayeurs.length}</strong></p>
+                    ${nonPayeurs.length > 0 ? nonPayeurs.map(m => `
+                        <p>• ${m.nom} ${m.prenom} - ${m.localite}</p>
+                    `).join('') : '<p>Tous les membres sont à jour !</p>'}
+                    <hr>
+                    
+                    <h4>📊 RÉCAPITULATIF DES COTISATIONS</h4>
+                    <p>💰 Cotisation totale attendue : ${(membres.length * 10000).toLocaleString()} FCFA</p>
+                    <p>✅ Montant déjà encaissé : ${total.toLocaleString()} FCFA</p>
+                    <p>📈 Taux de collecte : ${membres.length > 0 ? Math.round((total / (membres.length * 10000)) * 100) : 0}%</p>
+                    <hr>
+                    
+                    <p style="font-size:10px; text-align:center">Document généré par VOMASI - Gestion des cotisations</p>
+                </div>
+            `;
+            
+            document.getElementById('contentArea').innerHTML = fiche;
+        }
+        
+        function showLate() {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const nonAJour = membres.filter(m => !m.payeCotisation);
+            if (nonAJour.length === 0) {
+                document.getElementById('contentArea').innerHTML = '<h3>⚠️ Membres non à jour</h3><p>✅ Tous les membres sont à jour !</p>';
+                return;
+            }
+            let html = '<h3>⚠️ Membres n\'ayant PAS payé la cotisation (10000 FCFA)</h3>';
+            html += `<p><strong>Nombre : ${nonAJour.length}</strong></p>`;
+            for (const m of nonAJour) {
+                html += `
+                    <div class="member-card retard-complet">
+                        <div class="member-info">
+                            <strong>${m.nom} ${m.prenom}</strong><br>
+                            📍 ${m.localite}<br>
+                            📞 ${m.telephone}
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('contentArea').innerHTML = html;
+        }
+        
+        function showStats() {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            const total = parseInt(localStorage.getItem('totalCollecte'));
+            const totalAttendu = membres.length * COTISATION_BASE;
+            const nbPayeurs = membres.filter(m => m.payeCotisation).length;
+            const nbNonPayeurs = membres.filter(m => !m.payeCotisation).length;
+            const cycleDepasses = membres.filter(m => isCycleDepasse(m)).length;
+            
+            document.getElementById('contentArea').innerHTML = `
+                <h3>📊 Statistiques détaillées</h3>
+                <div class="info">
+                    <p><strong>💰 Total collecté (cotisation) :</strong> ${total.toLocaleString()} FCFA</p>
+                    <p><strong>🎯 Objectif total :</strong> ${totalAttendu.toLocaleString()} FCFA</p>
+                    <p><strong>📈 Progression :</strong> ${totalAttendu > 0 ? Math.round((total/totalAttendu)*100) : 0}%</p>
+                    <hr>
+                    <p><strong>✅ Cotisation payée :</strong> ${nbPayeurs}</p>
+                    <p><strong>❌ Cotisation non payée :</strong> ${nbNonPayeurs}</p>
+                    <hr>
+                    <p><strong>⚠️ Cycle 2 mois dépassé :</strong> ${cycleDepasses}</p>
+                    <hr>
+                    <p><strong>👑 Bénéficiaire actuel :</strong> ${localStorage.getItem('beneficiaire')}</p>
+                    <p><strong>💵 À remettre :</strong> ${total.toLocaleString()} FCFA</p>
+                </div>
+            `;
+        }
+        
+        function exportCSV() {
+            const membres = JSON.parse(localStorage.getItem('membres'));
+            let csv = "Nom,Prénom,Localité,Téléphone,Date paiement cotisation,Statut cotisation,Restauration\n";
+            for (const m of membres) {
+                const datePaiement = m.datePaiementCotisation ? new Date(m.datePaiementCotisation).toLocaleDateString('fr-FR') : "Non payée";
+                const statusCotisation = m.payeCotisation ? "Payée" : "Non payée";
+                const statusRepas = m.payeRepas ? "Payée" : "Non payée";
+                csv += `${m.nom},${m.prenom},${m.localite},${m.telephone},${datePaiement},${statusCotisation},${statusRepas}\n`;
+            }
+            
+            const total = localStorage.getItem('totalCollecte');
+            const benef = localStorage.getItem('beneficiaire');
+            const dateLimite = localStorage.getItem('dateLimite');
+            csv += `\n"RÉCAPITULATIF","","","","","",""\n`;
+            csv += `"Total collecté","${parseInt(total).toLocaleString()} FCFA","","","","",""\n`;
+            csv += `"Bénéficiaire","${benef}","","","","",""\n`;
+            csv += `"Date limite","${dateLimite || 'Non fixée'}","","","","",""\n`;
+            
+            const blob = new Blob(["\uFEFF" + csv], {type: 'text/csv;charset=utf-8;'});
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.setAttribute('download', 'vomasi_membres.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            alert('Export CSV terminé !');
+        }
+        
+        initDB();
+    </script>
+</body>
+</html>
